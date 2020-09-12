@@ -1,0 +1,228 @@
+#!/bin/sh
+# Author: cantbebotheredm8 ( Alixhan Basha )
+# email:  cantbebotheredm8@gmail.com
+# last edited: 12.09.2020
+
+#   TODO
+#       * [I] Add more debug messages !
+#       * [I] Fix the sound problem !
+#       * [I] Support the 'remove' aspect !
+
+#---------------------------------------------------------------------
+
+SCRIPT_NAME=$(basename $0)
+DEBUG=0     # by default its not in debug mode
+BEEP="NONE" # if you do not want sound change this to "NONE"
+VERSION="0.2.9.11"
+
+# Terminal colors
+RED="\033[0;31m"
+GRN="\033[0;32m"
+YLL="\033[0;33m"
+BLU="\033[0;34m"
+DEF="\033[0m"
+
+# Error codes
+SUCCESS=0; e_GENERAL=1; e_NOARGS=2; e_FILENAME=3; e_FILENOTFOUND=4; e_ARCHIVEEX=5; e_FATAL=-1; 
+
+# Helper functions
+header(){
+	#----------------------------------- Header -----------------------------------------------
+	echo "$RED" && figlet " : : IREX : :" && echo ""$DEF || echo "$RED : : IREX : : $DEF"
+	printf "$YLL --- InstallRemoveEXtract $DEF\n\n"
+	#------------------------------------------------------------------------------------------
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+usage(){
+header
+cat <<EOF
+
+    A simple shell script to automate installation, removal, extraction & archiving
+    Suports [ .deb .run tar.gz tar.xz rar zip ] formats
+
+    Usage:
+         $SCRIPT_NAME <option> <filename>
+
+    OPTIONS:
+
+        a | -a | --archive          --> To create tar|rar|zip archives ### You can also use c,-c or --create  flag as well
+        e | -e | --extract          --> To remove tar|rar|zip archives ### You can also use i,-i or --install flag as well
+        v | -v | --version          --> Show version of the script
+
+        dp| -dp| --dependencies     --> To install this scripts dependencies
+
+
+    EXAMPLES:
+        $ irex -e someArchive.(zip|rar|tar.gz|tar.xz|deb|run) #### extract a zip|rar|tar archive, or install a .run|.deb package
+                                                              #### you can append the -d|--debug option to the begining or the end
+
+        $ irex -a existingFile path/of/archiveToBeCreated.(zip|rar|tar.gz|tar.xz) #### create an archive of the given file 
+        $ irex -dp|--dependencies ### Install dependencies  
+ 
+    author: cantbebotheredm8 (Alixhan Basha)
+
+EOF
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+notify_user(){
+    command -v notify-send >/dev/null 2>&1 && {
+        notify-send "$1" "$2" 
+        #paplay $BEEP 2>/dev/null
+    } || echo "$2"
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+pr_debug(){
+    # Print if in debug mode
+    if [ $DEBUG -eq 1 ];then # if in debug mode
+        printf "$YLL[DEBUG]::$DEF"
+        printf " $GRN$1$DEF\n"
+    fi
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+unarchive(){
+	extension="$1"
+	thefile="$2"
+	[ -n "$thefile" ] && printf "$GRN Filename: $YLL$thefile$GRN\n Type: $YLL$extension$DEF\n\n"
+
+	case "$extension" in # check the filename extension
+		"dpkg" | "deb")
+			[ -z "$2" ] && printf "$YLL Please specify the filename $DEF\n\n" && return $e_FILENAME
+			printf "Installing .deb package @ -> [ $ ]\n"
+			pr_debug "Trying 'dpkg -i' on [ $thefile ]"
+			sudo dpkg -i "$thefile" && {
+				notify_user "$SCRIPT_NAME" "[ $thefile ] Installation complete !" && sudo apt --fix-broken install
+				pr_debug "No problems occured !"
+	    		} || return $e_GENERAL
+		;;
+
+		"run")
+			[ -z "$2" ] && echo "$YLL Please specify the filename $DEF" && return $e_FILENAME
+			printf "Installing .run package @ -> [ $thefile ]\n"
+			sudo chmod +x "$thefile"
+			pr_debug "Running the [ $thefile ] installer"
+			./$2 && {
+				notify_user "$SCRIPT_NAME" "[ $thefile ] Installation complete !"
+				pr_debug "No problems occured !"
+			} || echo "$RED Cannot execute the installer ! $DEF" && pr_debug "[ $thefile ] installer failed!" && return $e_GENERAL
+		;;
+
+		"gz")
+			[ -z "$2" ] && echo "$YLL Please specify the filename for extraction $DEF" && return $e_FILENAME
+			tar xzvf $thefile $3 && notify_user "$SCRIPT_NAME" "Exctraction of tar achive is complete" || $(echo "$RED Archive extraction failed $DEF" && return $e_ARCHIVEEX)
+		;;
+
+		"xz")
+			[ -z "$2" ] && echo "$YLL Please specify the filename for extraction $DEF" && return $e_FILENAME
+			tar xvf $thefile $3 && notify_user "$SCRIPT_NAME" "Exctraction of tar achive is complete" || $(echo "$RED Archive extraction failed $DEF" && return $e_ARCHIVEEX)
+		;;
+
+		"rar")
+			[ -z "$2" ] && echo "$YLL Please specify the filename for extraction $DEF" && return $e_FILENAME
+			unrar x $thefile $3 && notify_user "$SCRIPT_NAME" "Extraction of rar file complete" ||  $(echo "$RED Archive extraction failed $DEF" && return $e_ARCHIVEEX)
+		;;
+
+		"zip")
+			[ -z "$2" ] && echo "$YLL Please specify the filename for extraction $DEF" && return $e_FILENAME
+			unzip $thefile $3 && notify_user "$SCIPT_NAME" "Extraction of zip file complete" || $(echo "$RED Archive extraction failed $DEF" && return $e_ARCHIVEEX)
+		;;
+
+		*)
+			printf "What is it? I could not understand what you were trying to do!\nTry running -> $SCRIPT_NAME -h\n\n"
+			return $e_GENERAL
+		;;
+	esac
+	return $SUCCESS
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+archive(){
+	extension="$1"
+	existingFile="$2"
+	destinationFile="$3"
+
+	pr_debug "Filename: $existingFile    |    Type: $extension    |    Destination: $destinationFile\n"
+	[ -z "$2" ] && [ -z "$3" ] && printf "$RED Fatal error: Arguments cannot be empty $DEF\n" && return $e_NOARGS
+
+	if [ ! -d "$existingFile" ];then
+		printf "$RED" ; printf "Specified file does not exist !$DEF\n"
+		return $e_FILENOTFOUND
+	fi
+	if [ -z "$destinationFile" ];then
+		printf "$RED" ; printf "Specify the destination & the filename ex: ~/Desktop/test.tar.gz $DEF\n"
+		return $e_FILENOTFOUND
+	fi
+	printf "$GRN Filename: $YLL$existingFile$GRN\n Type: $YLL$extension$DEF\n\n"
+	case "$extension" in
+		"gz")
+			printf "$GRN" ; printf "Creating archive $DEF\n"
+			pr_debug "Generating tar.gz file from [ $existingFile ] to [ $destinationFile ]"
+			tar -czvf "$destinationFile" "$existingFile" && pr_debug "Done" && notify_user "$SCRIPT_NAME" "Archive \"$destinationFile\"\ generated @-> `date`" || return $e_ARCHIVEEX
+			return $SUCCESS
+		;;
+
+		"xz")
+			printf "$GRN" ; printf "Creating archive $DEF\n"
+			pr_debug "Generating tar.xz file from [ $existingFile ] to [ $destinationFile ]"
+			tar -cvJf "$destinationFile" "$existingFile" && pr_debug "Done" && echo "OK" && notify_user "$SCRIPT_NAME" "Archive \"$destinationFile\"\ generated @-> `date`" || return $e_ARCHIVEEX
+			return $SUCCESS
+		;;
+
+		"rar")
+			printf "$GRN" ; printf "Creating archive $DEF\n"
+			pr_debug "Generating rar file from [ $existingFile ] to [ $destinationFile ]"
+			rar a "$destinationFile" "$existingFile" && pr_debug "Done" && echo "OK" && notify_user "$SCRIPT_NAME" "Archive \"$destinationFile\"\ generated @-> `date`" || return $e_ARCHIVEEX
+			return $SUCCESS
+		;;
+
+		"zip")
+			printf "$GRN" ; printf "Creating archive $DEF\n"
+			pr_debug "Generating rar file from [ $existingFile ] to [ $destinationFile ]"
+			zip -r "$destinationFile" "$existingFile" && pr_debug "Done" && echo "OK" && notify_user "$SCRIPT_NAME" "Archive \"$destinationFile\"\ generated @-> `date`" || return $e_ARCHIVEEX
+			return $SUCCESS
+		;;
+
+		*)
+			printf "${GRN}File extension not supported\n"
+			pr_debug "Tried to archive an unsupported file"
+			return $e_ARCHIVEEX
+		;;
+esac
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+[ $# -ge 1 ] && {
+	while [ $# -gt 0 ];do
+		#pr_debug "Parsing arg: [ $1 ]"
+		case "$1" in
+			"e" | "-e" | "--extract" | "i" | "-i" | "--install" )
+				header
+				filename="$2"
+				postfix=$(echo "$2" | awk -F. '{print $NF}')
+				unarchive $postfix $filename
+				exit $?
+			;;
+			"a" | "-a" | "--archive" | "c" | "-c" | "--create" )
+				header
+				filename="$2"
+				postfix=$(echo "$3" | awk -F. '{print $NF}')
+				archive $postfix $filename $3
+				exit $?
+			;;
+			"r" | "-r" | "--remove") echo "Remove is not yet available" ;;
+			"d" | "-d" | "--debug" | "vb" | "-vb" | "--verbose" ) DEBUG=1 ;;
+			"v" | "-v" | "--version") printf "Irex Version: $VERSION\n\n" ;;
+			"dp" | "-dp" | "--dependencies")
+				header
+				read -p "Are you shure you want to install all the dependencies? [Y/n]: " des
+				if [ "$des" = "y" ];then
+					sudo apt install unzip unrar rar figlet libnotify4 gawk libnotify-bin
+				else
+					echo "Ok not installing"
+				fi
+			;;
+			"h" | "-h" | "--help" | "--man" | "?" | "-?" ) usage ;;
+			*) printf "$YLL$SCRIPT_NAME:$RED Unknown argument [\"$1\"]\n$BLU   Try irex -h$DEF\n" ; return $e_GENERAL ;;
+		esac
+		shift
+
+	done
+return $SUCCESS
+} || usage && exit $e_NOARGS
