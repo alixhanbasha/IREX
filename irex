@@ -14,6 +14,7 @@ SCRIPT_NAME=$(basename $0)
 DEBUG=0     # by default its not in debug mode
 BEEP="NONE" # if you do not want sound change this to "NONE"
 VERSION="0.2.9.11"
+INSTALL_CMD="apt"
 
 # Terminal colors
 RED="\033[0;31m"
@@ -28,7 +29,7 @@ SUCCESS=0; e_GENERAL=1; e_NOARGS=2; e_FILENAME=3; e_FILENOTFOUND=4; e_ARCHIVEEX=
 # Helper functions
 header(){
 	#----------------------------------- Header -----------------------------------------------
-	echo "$RED" && figlet " : : IREX : :" && echo ""$DEF || echo "$RED : : IREX : : $DEF"
+	echo "$RED" && figlet " : : IREX : :" 2>/dev/null && echo ""$DEF || echo "$RED : : IREX : : $DEF"
 	printf "$YLL --- InstallRemoveEXtract $DEF\n\n"
 	#------------------------------------------------------------------------------------------
 }
@@ -213,7 +214,7 @@ esac
 				header
 				read -p "Are you shure you want to install all the dependencies? [Y/n]: " des
 				if [ "$des" = "y" ];then
-					sudo apt install unzip unrar rar figlet libnotify4 gawk libnotify-bin
+					sudo ${INSTALL_CMD} install unzip unrar rar figlet libnotify4 gawk libnotify-bin
 				else
 					echo "Ok not installing"
 				fi
