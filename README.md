@@ -1,4 +1,4 @@
-author: cantbebothered (Alixhan Basha)
+author: hashbang404
 # InstallRemoveEXtract
 
 - A posix shell script that makes your life a little bit easier,

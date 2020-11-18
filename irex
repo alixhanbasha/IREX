@@ -60,7 +60,7 @@ cat <<EOF
         $ irex -a existingFile path/of/archiveToBeCreated.(zip|rar|tar.gz|tar.xz) #### create an archive of the given file 
         $ irex -dp|--dependencies ### Install dependencies  
  
-    author: cantbebotheredm8 (Alixhan Basha)
+    author: hashbang404 (@alixhanbasha)
 
 EOF
 }
