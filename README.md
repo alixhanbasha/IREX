@@ -1,4 +1,3 @@
-author: hashbang404
 # InstallRemoveEXtract
 
 - A posix shell script that makes your life a little bit easier,
@@ -7,6 +6,4 @@ author: hashbang404
 
 * Automatic installation of .run & .deb files
 * Extract/Archive/Remove tar|rar|zip formats easily
-* Simple to use & easy to edit ( its a shell script "bruh" )
-
-
+* Simple to use & easy to edit ( its a shell script )
